@@ -1,68 +1,26 @@
-// extension/content.js - Инжектится во все страницы
+// extension/content.js - БЕЗ ИНЪЕКЦИЙ ФИНГЕРПРИНТА
 
 (function() {
   'use strict';
   
-  // Проверяем что не загружены дважды
-  if (window.__browserVPNInjected) return;
-  window.__browserVPNInjected = true;
+  // Просто логируем что скрипт загружен
+  console.log('🛡️ Browser VPN extension active');
   
-  console.log('🛡️ Browser VPN content script loaded');
-  
-  // Получаем fingerprint от background
-  chrome.runtime.sendMessage({ type: 'getFingerprint' }, (response) => {
-    if (response && response.fingerprint) {
-      injectFingerprint(response.fingerprint);
-    }
-  });
-  
-  // Инжектим скрипт для подмены fingerprint
-  function injectFingerprint(fingerprint) {
-    const script = document.createElement('script');
-    script.textContent = `
-      (function() {
-        const fp = ${JSON.stringify(fingerprint)};
-        
-        // Подменяем navigator
-        Object.defineProperty(navigator, 'userAgent', {
-          get: () => fp.userAgent
-        });
-        
-        Object.defineProperty(navigator, 'language', {
-          get: () => fp.language
-        });
-        
-        Object.defineProperty(navigator, 'platform', {
-          get: () => fp.platform
-        });
-        
-        // Подменяем screen
-        if (fp.screenResolution) {
-          Object.defineProperty(screen, 'width', {
-            get: () => fp.screenResolution.width
-          });
-          
-          Object.defineProperty(screen, 'height', {
-            get: () => fp.screenResolution.height
-          });
+  // Можем собирать статистику если нужно
+  if (window.performance && window.performance.timing) {
+    window.addEventListener('load', () => {
+      const timing = window.performance.timing;
+      const loadTime = timing.loadEventEnd - timing.navigationStart;
+      
+      // Отправляем статистику в background
+      chrome.runtime.sendMessage({
+        type: 'pageStats',
+        stats: {
+          url: window.location.href,
+          loadTime: loadTime,
+          timestamp: Date.now()
         }
-        
-        // Защита от WebRTC утечек
-        const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-        if (PC) {
-          window.RTCPeerConnection = function(config) {
-            if (config && config.iceServers) {
-              config.iceServers = config.iceServers.filter(s => 
-                !s.urls || !s.urls.includes('stun:')
-              );
-            }
-            return new PC(config);
-          };
-        }
-      })();
-    `;
-    
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
+      });
+    });
   }
 })();
