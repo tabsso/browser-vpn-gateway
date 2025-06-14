@@ -1,0 +1,234 @@
+body {
+  width: 350px;
+  min-height: 400px;
+  margin: 0;
+  font-family: -apple-system, system-ui, sans-serif;
+  background: #f5f5f5;
+}
+
+.container {
+  padding: 20px;
+}
+
+h1 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  text-align: center;
+  color: #333;
+}
+
+h2 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  text-align: center;
+  color: #666;
+}
+
+.view {
+  display: block;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Mode buttons */
+.mode-btn {
+  width: 100%;
+  padding: 20px;
+  margin-bottom: 15px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.mode-btn:hover {
+  border-color: #4285f4;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.mode-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.mode-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.mode-desc {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Status */
+.status {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ccc;
+  margin-right: 10px;
+}
+
+.status-dot.active {
+  background: #4caf50;
+  animation: pulse 2s infinite;
+}
+
+.status-dot.connecting {
+  background: #ff9800;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Forms */
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: none;
+  border-color: #4285f4;
+}
+
+/* Buttons */
+.primary-btn,
+.danger-btn,
+.back-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary-btn {
+  background: #4285f4;
+  color: white;
+}
+
+.primary-btn:hover {
+  background: #3367d6;
+}
+
+.primary-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.danger-btn {
+  background: #f44336;
+  color: white;
+}
+
+.danger-btn:hover {
+  background: #d32f2f;
+}
+
+.back-btn {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+  margin-top: 20px;
+}
+
+.back-btn:hover {
+  background: #f5f5f5;
+}
+
+/* Info box */
+.info-box {
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.info-box label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.id-container {
+  display: flex;
+  gap: 10px;
+}
+
+#gatewayId {
+  flex: 1;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: #4285f4;
+}
+
+#copyId {
+  padding: 0 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+#copyId:hover {
+  background: #f5f5f5;
+}
+
+/* Stats */
+.stats {
+  display: flex;
+  gap: 20px;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.stat {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}

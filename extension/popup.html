@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Browser VPN Gateway</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Browser VPN Gateway</h1>
+    
+    <!-- Mode selection -->
+    <div id="modeSelection" class="view">
+      <h2>Select Mode</h2>
+      <button id="gatewayMode" class="mode-btn">
+        <div class="mode-icon">🏠</div>
+        <div class="mode-title">Gateway Mode</div>
+        <div class="mode-desc">Share your network</div>
+      </button>
+      <button id="clientMode" class="mode-btn">
+        <div class="mode-icon">🌐</div>
+        <div class="mode-title">Client Mode</div>
+        <div class="mode-desc">Connect to gateway</div>
+      </button>
+    </div>
+    
+    <!-- Gateway view -->
+    <div id="gatewayView" class="view hidden">
+      <div class="status">
+        <div class="status-dot" id="gatewayStatusDot"></div>
+        <span id="gatewayStatus">Inactive</span>
+      </div>
+      
+      <div id="gatewayInfo" class="info-box hidden">
+        <label>Gateway ID:</label>
+        <div class="id-container">
+          <input type="text" id="gatewayId" readonly>
+          <button id="copyId">📋</button>
+        </div>
+      </div>
+      
+      <button id="toggleGateway" class="primary-btn">Start Gateway</button>
+      
+      <div id="stats" class="stats hidden">
+        <div class="stat">
+          <span class="stat-label">Clients:</span>
+          <span class="stat-value" id="clientCount">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Data:</span>
+          <span class="stat-value" id="dataTransferred">0 MB</span>
+        </div>
+      </div>
+      
+      <button class="back-btn" id="backFromGateway">← Back</button>
+    </div>
+    
+    <!-- Client view -->
+    <div id="clientView" class="view hidden">
+      <div class="status">
+        <div class="status-dot" id="clientStatusDot"></div>
+        <span id="clientStatus">Disconnected</span>
+      </div>
+      
+      <div id="connectForm">
+        <input type="text" id="targetGatewayId" placeholder="Gateway ID (e.g. GW-ABC12)">
+        <input type="password" id="password" placeholder="Password (optional)">
+        <button id="connectBtn" class="primary-btn">Connect</button>
+      </div>
+      
+      <div id="connectedInfo" class="info-box hidden">
+        <p>Connected to: <strong id="connectedTo"></strong></p>
+        <button id="disconnectBtn" class="danger-btn">Disconnect</button>
+      </div>
+      
+      <button class="back-btn" id="backFromClient">← Back</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

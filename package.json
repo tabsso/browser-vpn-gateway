@@ -1,0 +1,10 @@
+{
+  "name": "browser-vpn-gateway",
+  "version": "1.0.0",
+  "description": "Browser-based VPN gateway using WebRTC",
+  "scripts": {
+    "install-all": "npm install && cd signal-server && npm install",
+    "dev": "cd signal-server && node server.js",
+    "start": "cd signal-server && node server.js"
+  }
+}
