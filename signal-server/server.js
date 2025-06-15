@@ -175,7 +175,6 @@ function handleDisconnect(ws) {
     }
   } else if (ws.isClient) {
     clients.delete(ws.clientId);
-    connections.delete(ws.clientId);
     console.log(`📴 Client disconnected: ${ws.clientId}`);
     
     // Уведомляем gateway
@@ -189,6 +188,7 @@ function handleDisconnect(ws) {
         }));
       }
     }
+    connections.delete(ws.clientId);
   }
 }
 
@@ -210,23 +210,67 @@ const interval = setInterval(() => {
 server.listen(config.PORT, () => {
   console.log(`✅ Signal server running on port ${config.PORT}`);
   console.log(`Mode: ${config.SSL ? 'HTTPS/WSS' : 'HTTP/WS'}`);
+  console.log('Press Ctrl+C to stop\n');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, closing server...');
+let isShuttingDown = false;
+
+function shutdown() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  console.log('\n🛑 Shutting down server...');
+  
+  // Останавливаем interval
   clearInterval(interval);
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
+  
+  // Закрываем все WebSocket соединения
+  wss.clients.forEach((ws) => {
+    ws.close();
   });
+  
+  // Закрываем WebSocket сервер
+  wss.close(() => {
+    console.log('WebSocket server closed');
+    
+    // Закрываем HTTP сервер
+    server.close(() => {
+      console.log('HTTP server closed');
+      console.log('👋 Goodbye!');
+      process.exit(0);
+    });
+  });
+  
+  // Форсированный выход через 5 секунд если что-то зависло
+  setTimeout(() => {
+    console.error('Force exit after timeout');
+    process.exit(1);
+  }, 5000);
+}
+
+// Обработка сигналов для macOS/Linux
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
+// Для Windows
+if (process.platform === "win32") {
+  const rl = require("readline").createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  
+  rl.on("SIGINT", () => {
+    process.emit("SIGINT");
+  });
+}
+
+// Обработка неперехваченных ошибок
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  shutdown();
 });
 
-process.on('SIGINT', () => {
-  console.log('\nSIGINT received, closing server...');
-  clearInterval(interval);
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

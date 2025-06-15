@@ -1,4 +1,4 @@
-// extension/background.js - ПОЛНОЦЕННЫЙ VPN с исправлениями
+// extension/background.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 
 // Загружаем конфигурацию
 importScripts('config.js');
@@ -41,11 +41,6 @@ class BrowserVPNGateway {
       this.handleMessage(request, sender, sendResponse);
       return true;
     });
-    
-    // Если мы в режиме клиента, настраиваем перехват запросов
-    if (this.mode === 'client') {
-      this.setupClientProxy();
-    }
   }
 
   async handleMessage(request, sender, sendResponse) {
@@ -82,6 +77,11 @@ class BrowserVPNGateway {
             peersCount: this.peers.size
           });
           break;
+          
+        case 'pageStats':
+          // Игнорируем статистику страниц
+          sendResponse({ success: true });
+          break;
       }
     } catch (error) {
       console.error('Ошибка обработки сообщения:', error);
@@ -111,12 +111,16 @@ class BrowserVPNGateway {
       console.log('✅ Gateway запущен:', this.gatewayId);
       
       // Показываем уведомление
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon128.png',
-        title: 'Gateway активен',
-        message: `Ваш Gateway ID: ${this.gatewayId}`
-      });
+      try {
+        await chrome.notifications.create('gateway-started', {
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: 'Gateway активен',
+          message: `Ваш Gateway ID: ${this.gatewayId}`
+        });
+      } catch (e) {
+        console.log('Не удалось показать уведомление:', e);
+      }
       
       return {
         success: true,
@@ -168,7 +172,7 @@ class BrowserVPNGateway {
   async connectToGateway(gatewayId, password) {
     try {
       this.mode = 'client';
-      this.gatewayId = gatewayId; // Сохраняем к какому gateway подключены
+      this.gatewayId = gatewayId;
       
       await this.connectToSignalServer();
       
@@ -199,9 +203,6 @@ class BrowserVPNGateway {
     this.gatewayId = null;
     this.isConnected = false;
     
-    // Отключаем прокси
-    this.disableProxy();
-    
     // Закрываем WebSocket
     if (this.ws) {
       this.ws.close();
@@ -220,87 +221,6 @@ class BrowserVPNGateway {
     await chrome.storage.local.remove(['mode', 'gatewayId', 'connectedGateway']);
     
     console.log('🔌 Отключено');
-  }
-
-  // Настройка прокси для клиента
-  setupClientProxy() {
-    console.log('Настройка прокси клиента...');
-    
-    // Сохраняем функцию для удаления слушателя
-    this.interceptRequestBound = (details) => this.interceptRequest(details);
-    
-    // Перехватываем ВСЕ HTTP/HTTPS запросы
-    chrome.webRequest.onBeforeRequest.addListener(
-      this.interceptRequestBound,
-      { urls: ["<all_urls>"] },
-      ["blocking"]
-    );
-  }
-
-  disableProxy() {
-    // Убираем перехват
-    if (this.interceptRequestBound) {
-      chrome.webRequest.onBeforeRequest.removeListener(this.interceptRequestBound);
-      this.interceptRequestBound = null;
-    }
-  }
-
-  // Перехват запросов в режиме клиента
-  async interceptRequest(details) {
-    if (!this.isConnected || this.mode !== 'client') {
-      return {};
-    }
-    
-    // Пропускаем запросы к сигнальному серверу
-    if (details.url.includes(SIGNAL_SERVER)) {
-      return {};
-    }
-    
-    console.log('Перехват запроса:', details.url);
-    
-    // Генерируем ID для запроса
-    const requestId = ++this.requestCounter;
-    
-    // Отправляем запрос через туннель
-    const peer = this.peers.values().next().value;
-    if (!peer || !peer.channels.control) {
-      return { cancel: true };
-    }
-    
-    // Создаем promise для ожидания ответа
-    const responsePromise = new Promise((resolve) => {
-      this.pendingRequests.set(requestId, {
-        resolve,
-        timestamp: Date.now()
-      });
-    });
-    
-    // Отправляем запрос gateway
-    this.sendControlMessage(peer.id, {
-      type: 'httpRequest',
-      requestId: requestId,
-      url: details.url,
-      method: details.method,
-      headers: details.requestHeaders || {},
-      body: details.requestBody ? 
-        btoa(String.fromCharCode(...new Uint8Array(details.requestBody.raw[0].bytes))) : null
-    });
-    
-    // Ждем ответ
-    try {
-      const response = await Promise.race([
-        responsePromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000))
-      ]);
-      
-      // Возвращаем redirect на data URL с ответом
-      return {
-        redirectUrl: `data:${response.contentType};base64,${response.body}`
-      };
-    } catch (error) {
-      console.error('Запрос не удался:', error);
-      return { cancel: true };
-    }
   }
 
   // WebSocket соединение
@@ -365,16 +285,17 @@ class BrowserVPNGateway {
             connectedGateway: message.gatewayId 
           });
           
-          // Настраиваем прокси
-          this.setupClientProxy();
-          
           // Уведомление
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'icons/icon128.png',
-            title: 'VPN подключен',
-            message: `Подключено к ${message.gatewayId}`
-          });
+          try {
+            await chrome.notifications.create('vpn-connected', {
+              type: 'basic',
+              iconUrl: 'icons/icon128.png',
+              title: 'VPN подключен',
+              message: `Подключено к ${message.gatewayId}`
+            });
+          } catch (e) {
+            console.log('Не удалось показать уведомление:', e);
+          }
           
           this.pendingConnection.resolve({
             success: true,
@@ -408,12 +329,16 @@ class BrowserVPNGateway {
         // Gateway отключился, отключаем клиента
         if (this.mode === 'client') {
           await this.disconnect();
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'icons/icon128.png',
-            title: 'VPN отключен',
-            message: 'Gateway отключился'
-          });
+          try {
+            await chrome.notifications.create('vpn-disconnected', {
+              type: 'basic',
+              iconUrl: 'icons/icon128.png',
+              title: 'VPN отключен',
+              message: 'Gateway отключился'
+            });
+          } catch (e) {
+            console.log('Не удалось показать уведомление:', e);
+          }
         }
         break;
         
@@ -605,19 +530,18 @@ class BrowserVPNGateway {
     }
   }
 
-  // Gateway: проксирование ЛЮБЫХ запросов
+  // Gateway: проксирование запросов (упрощенная версия для демо)
   async proxyHttpRequest(peerId, request) {
     const { requestId, url, method, headers, body } = request;
     
     try {
       console.log('Проксирование запроса:', url);
       
-      // БЕЗ ПРОВЕРКИ НА ЛОКАЛЬНОСТЬ - проксируем ВСЁ
       const response = await fetch(url, {
         method,
         headers,
         body: body ? atob(body) : undefined,
-        credentials: 'omit' // Не отправляем куки gateway
+        credentials: 'omit'
       });
       
       const responseBody = await response.arrayBuffer();
@@ -654,7 +578,7 @@ class BrowserVPNGateway {
 
   sendControlMessage(peerId, message) {
     const peer = this.peers.get(peerId);
-    if (peer && peer.channels.control) {
+    if (peer && peer.channels.control && peer.channels.control.readyState === 'open') {
       const data = JSON.stringify(message);
       peer.channels.control.send(data);
       peer.stats.bytesSent += data.length;

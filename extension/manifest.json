@@ -7,9 +7,9 @@
   "permissions": [
     "storage",
     "webRequest",
-    "proxy",
     "tabs",
-    "scripting"
+    "scripting",
+    "notifications"
   ],
   
   "host_permissions": [
