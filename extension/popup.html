@@ -9,71 +9,79 @@
   <div class="container">
     <h1>Browser VPN Gateway</h1>
     
-    <!-- Mode selection -->
+    <!-- Выбор режима -->
     <div id="modeSelection" class="view">
-      <h2>Select Mode</h2>
+      <h2>Выберите режим</h2>
       <button id="gatewayMode" class="mode-btn">
         <div class="mode-icon">🏠</div>
-        <div class="mode-title">Gateway Mode</div>
-        <div class="mode-desc">Share your network</div>
+        <div class="mode-title">Режим Gateway</div>
+        <div class="mode-desc">Раздать доступ к сети</div>
       </button>
       <button id="clientMode" class="mode-btn">
         <div class="mode-icon">🌐</div>
-        <div class="mode-title">Client Mode</div>
-        <div class="mode-desc">Connect to gateway</div>
+        <div class="mode-title">Режим Client</div>
+        <div class="mode-desc">Подключиться к Gateway</div>
       </button>
     </div>
     
-    <!-- Gateway view -->
+    <!-- Gateway режим -->
     <div id="gatewayView" class="view hidden">
       <div class="status">
         <div class="status-dot" id="gatewayStatusDot"></div>
-        <span id="gatewayStatus">Inactive</span>
+        <span id="gatewayStatus">Неактивно</span>
       </div>
       
       <div id="gatewayInfo" class="info-box hidden">
-        <label>Gateway ID:</label>
+        <label>ID вашего Gateway:</label>
         <div class="id-container">
           <input type="text" id="gatewayId" readonly>
-          <button id="copyId">📋</button>
+          <button id="copyId" class="copy-btn" title="Скопировать">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+            </svg>
+          </button>
         </div>
       </div>
       
-      <button id="toggleGateway" class="primary-btn">Start Gateway</button>
+      <button id="toggleGateway" class="primary-btn">Запустить Gateway</button>
       
       <div id="stats" class="stats hidden">
         <div class="stat">
-          <span class="stat-label">Clients:</span>
+          <span class="stat-label">Клиентов:</span>
           <span class="stat-value" id="clientCount">0</span>
         </div>
         <div class="stat">
-          <span class="stat-label">Data:</span>
-          <span class="stat-value" id="dataTransferred">0 MB</span>
+          <span class="stat-label">Трафик:</span>
+          <span class="stat-value" id="dataTransferred">0.0 МБ</span>
         </div>
       </div>
       
-      <button class="back-btn" id="backFromGateway">← Back</button>
+      <button class="back-btn" id="backFromGateway">← Назад</button>
     </div>
     
-    <!-- Client view -->
+    <!-- Client режим -->
     <div id="clientView" class="view hidden">
       <div class="status">
         <div class="status-dot" id="clientStatusDot"></div>
-        <span id="clientStatus">Disconnected</span>
+        <span id="clientStatus">Отключено</span>
       </div>
       
       <div id="connectForm">
-        <input type="text" id="targetGatewayId" placeholder="Gateway ID (e.g. GW-ABC12)">
-        <input type="password" id="password" placeholder="Password (optional)">
-        <button id="connectBtn" class="primary-btn">Connect</button>
+        <label for="targetGatewayId">Gateway ID:</label>
+        <input type="text" id="targetGatewayId" placeholder="Например: GW-ABC12">
+        
+        <label for="password">Пароль (если есть):</label>
+        <input type="password" id="password" placeholder="Оставьте пустым если нет">
+        
+        <button id="connectBtn" class="primary-btn">Подключиться</button>
       </div>
       
       <div id="connectedInfo" class="info-box hidden">
-        <p>Connected to: <strong id="connectedTo"></strong></p>
-        <button id="disconnectBtn" class="danger-btn">Disconnect</button>
+        <p>Подключено к: <strong id="connectedTo"></strong></p>
+        <button id="disconnectBtn" class="danger-btn">Отключиться</button>
       </div>
       
-      <button class="back-btn" id="backFromClient">← Back</button>
+      <button class="back-btn" id="backFromClient">← Назад</button>
     </div>
   </div>
   

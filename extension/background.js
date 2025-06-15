@@ -1,10 +1,10 @@
-// extension/background.js - ПОЛНОЦЕННЫЙ VPN
+// extension/background.js - ПОЛНОЦЕННЫЙ VPN с исправлениями
 
 // Загружаем конфигурацию
 importScripts('config.js');
 
-console.log('🚀 Browser VPN Gateway starting...');
-console.log('📡 Signal server:', SIGNAL_SERVER);
+console.log('🚀 Browser VPN Gateway запускается...');
+console.log('📡 Сигнальный сервер:', SIGNAL_SERVER);
 
 class BrowserVPNGateway {
   constructor() {
@@ -49,7 +49,7 @@ class BrowserVPNGateway {
   }
 
   async handleMessage(request, sender, sendResponse) {
-    console.log('📨 Message:', request.type);
+    console.log('📨 Сообщение:', request.type);
     
     try {
       switch (request.type) {
@@ -77,14 +77,14 @@ class BrowserVPNGateway {
           sendResponse({
             mode: this.mode,
             gatewayId: this.gatewayId,
-            isConnected: this.isConnected,
+            isConnected: this.ws && this.ws.readyState === WebSocket.OPEN,
             stats: this.stats,
             peersCount: this.peers.size
           });
           break;
       }
     } catch (error) {
-      console.error('Error handling message:', error);
+      console.error('Ошибка обработки сообщения:', error);
       sendResponse({ error: error.message });
     }
   }
@@ -108,45 +108,73 @@ class BrowserVPNGateway {
         gatewayId: this.gatewayId
       });
       
-      console.log('✅ Gateway started:', this.gatewayId);
+      console.log('✅ Gateway запущен:', this.gatewayId);
+      
+      // Показываем уведомление
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'Gateway активен',
+        message: `Ваш Gateway ID: ${this.gatewayId}`
+      });
       
       return {
         success: true,
         gatewayId: this.gatewayId
       };
     } catch (error) {
-      console.error('Failed to start gateway:', error);
+      console.error('Не удалось запустить gateway:', error);
       throw error;
     }
   }
 
   async stopGateway() {
-    this.mode = null;
+    console.log('Останавливаем Gateway...');
     
+    // Сбрасываем режим
+    this.mode = null;
+    this.gatewayId = null;
+    this.isConnected = false;
+    
+    // Закрываем все peer соединения
     for (const [id, peer] of this.peers) {
-      peer.pc.close();
+      if (peer.pc) {
+        peer.pc.close();
+      }
     }
     this.peers.clear();
     
+    // Закрываем WebSocket
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
     
+    // Очищаем сохраненное состояние
     await chrome.storage.local.remove(['mode', 'gatewayId']);
-    console.log('⏹️ Gateway stopped');
+    
+    // Сбрасываем статистику
+    this.stats = {
+      bytesReceived: 0,
+      bytesSent: 0,
+      connectionsActive: 0,
+      startTime: null
+    };
+    
+    console.log('⏹️ Gateway остановлен');
   }
 
   // Client режим
   async connectToGateway(gatewayId, password) {
     try {
       this.mode = 'client';
+      this.gatewayId = gatewayId; // Сохраняем к какому gateway подключены
       
       await this.connectToSignalServer();
       
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Connection timeout'));
+          reject(new Error('Таймаут подключения'));
         }, 10000);
         
         this.pendingConnection = { resolve, reject, timeout };
@@ -158,71 +186,63 @@ class BrowserVPNGateway {
         }));
       });
     } catch (error) {
-      console.error('Failed to connect:', error);
+      console.error('Не удалось подключиться:', error);
       throw error;
     }
   }
 
   async disconnect() {
+    console.log('Отключаемся...');
+    
+    // Сбрасываем режим
     this.mode = null;
+    this.gatewayId = null;
+    this.isConnected = false;
     
     // Отключаем прокси
     this.disableProxy();
     
+    // Закрываем WebSocket
     if (this.ws) {
       this.ws.close();
+      this.ws = null;
     }
     
+    // Закрываем все peer соединения
     for (const [id, peer] of this.peers) {
-      peer.pc.close();
+      if (peer.pc) {
+        peer.pc.close();
+      }
     }
     this.peers.clear();
     
-    console.log('🔌 Disconnected');
+    // Очищаем сохраненное состояние
+    await chrome.storage.local.remove(['mode', 'gatewayId', 'connectedGateway']);
+    
+    console.log('🔌 Отключено');
   }
 
   // Настройка прокси для клиента
   setupClientProxy() {
-    console.log('Setting up client proxy...');
+    console.log('Настройка прокси клиента...');
+    
+    // Сохраняем функцию для удаления слушателя
+    this.interceptRequestBound = (details) => this.interceptRequest(details);
     
     // Перехватываем ВСЕ HTTP/HTTPS запросы
     chrome.webRequest.onBeforeRequest.addListener(
-      (details) => this.interceptRequest(details),
+      this.interceptRequestBound,
       { urls: ["<all_urls>"] },
       ["blocking"]
     );
-    
-    // Также настраиваем декларативный прокси для других протоколов
-    chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [1],
-      addRules: [{
-        id: 1,
-        priority: 1,
-        action: {
-          type: "redirect",
-          redirect: { 
-            transform: {
-              scheme: "http",
-              host: "vpn.local"
-            }
-          }
-        },
-        condition: {
-          urlFilter: "*",
-          resourceTypes: ["main_frame", "sub_frame", "xmlhttprequest", "other"]
-        }
-      }]
-    });
   }
 
   disableProxy() {
     // Убираем перехват
-    chrome.webRequest.onBeforeRequest.removeListener(this.interceptRequest);
-    
-    // Убираем правила
-    chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [1]
-    });
+    if (this.interceptRequestBound) {
+      chrome.webRequest.onBeforeRequest.removeListener(this.interceptRequestBound);
+      this.interceptRequestBound = null;
+    }
   }
 
   // Перехват запросов в режиме клиента
@@ -236,7 +256,7 @@ class BrowserVPNGateway {
       return {};
     }
     
-    console.log('Intercepting request:', details.url);
+    console.log('Перехват запроса:', details.url);
     
     // Генерируем ID для запроса
     const requestId = ++this.requestCounter;
@@ -278,7 +298,7 @@ class BrowserVPNGateway {
         redirectUrl: `data:${response.contentType};base64,${response.body}`
       };
     } catch (error) {
-      console.error('Request failed:', error);
+      console.error('Запрос не удался:', error);
       return { cancel: true };
     }
   }
@@ -286,12 +306,12 @@ class BrowserVPNGateway {
   // WebSocket соединение
   async connectToSignalServer() {
     return new Promise((resolve, reject) => {
-      console.log('Connecting to signal server...');
+      console.log('Подключение к сигнальному серверу...');
       
       this.ws = new WebSocket(SIGNAL_SERVER);
       
       this.ws.onopen = () => {
-        console.log('✅ Connected to signal server');
+        console.log('✅ Подключено к сигнальному серверу');
         this.isConnected = true;
         resolve();
       };
@@ -301,25 +321,35 @@ class BrowserVPNGateway {
       };
       
       this.ws.onerror = (error) => {
-        console.error('❌ Signal server error:', error);
-        reject(new Error('Cannot connect to signal server'));
+        console.error('❌ Ошибка сигнального сервера:', error);
+        this.isConnected = false;
+        reject(new Error('Не удается подключиться к сигнальному серверу'));
       };
       
       this.ws.onclose = () => {
-        console.log('Signal server disconnected');
+        console.log('Сигнальный сервер отключен');
         this.isConnected = false;
         
-        if (this.mode === 'gateway') {
-          setTimeout(() => this.connectToSignalServer(), 3000);
+        // НЕ переподключаемся автоматически если Gateway был остановлен вручную
+        if (this.mode === 'gateway' && this.ws) {
+          setTimeout(() => {
+            if (this.mode === 'gateway') {
+              this.connectToSignalServer();
+            }
+          }, 3000);
         }
       };
     });
   }
 
   async handleSignalMessage(message) {
-    console.log('📨 Signal message:', message.type);
+    console.log('📨 Сигнальное сообщение:', message.type);
     
     switch (message.type) {
+      case 'registered':
+        console.log('Gateway зарегистрирован на сервере');
+        break;
+        
       case 'clientConnecting':
         if (this.mode === 'gateway') {
           await this.handleClientConnection(message);
@@ -338,6 +368,14 @@ class BrowserVPNGateway {
           // Настраиваем прокси
           this.setupClientProxy();
           
+          // Уведомление
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/icon128.png',
+            title: 'VPN подключен',
+            message: `Подключено к ${message.gatewayId}`
+          });
+          
           this.pendingConnection.resolve({
             success: true,
             gatewayId: message.gatewayId
@@ -349,7 +387,7 @@ class BrowserVPNGateway {
       case 'connectionRejected':
         if (this.pendingConnection) {
           clearTimeout(this.pendingConnection.timeout);
-          this.pendingConnection.reject(new Error(message.reason));
+          this.pendingConnection.reject(new Error(message.reason || 'Подключение отклонено'));
           this.pendingConnection = null;
         }
         break;
@@ -365,13 +403,38 @@ class BrowserVPNGateway {
       case 'ice':
         await this.handleIceCandidate(message);
         break;
+        
+      case 'gatewayDisconnected':
+        // Gateway отключился, отключаем клиента
+        if (this.mode === 'client') {
+          await this.disconnect();
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/icon128.png',
+            title: 'VPN отключен',
+            message: 'Gateway отключился'
+          });
+        }
+        break;
+        
+      case 'clientDisconnected':
+        // Клиент отключился
+        if (message.clientId && this.peers.has(message.clientId)) {
+          const peer = this.peers.get(message.clientId);
+          if (peer.pc) {
+            peer.pc.close();
+          }
+          this.peers.delete(message.clientId);
+          this.stats.connectionsActive--;
+        }
+        break;
     }
   }
 
   // WebRTC
   async handleClientConnection(message) {
     const { clientId } = message;
-    console.log('👤 Client connecting:', clientId);
+    console.log('👤 Подключается клиент:', clientId);
     
     const pc = new RTCPeerConnection({
       iceServers: CONFIG.ICE_SERVERS
@@ -427,7 +490,7 @@ class BrowserVPNGateway {
 
   async handleOffer(message) {
     const { from, offer } = message;
-    console.log('📥 Received offer from:', from);
+    console.log('📥 Получен offer от:', from);
     
     const pc = new RTCPeerConnection({
       iceServers: CONFIG.ICE_SERVERS
@@ -476,7 +539,7 @@ class BrowserVPNGateway {
     
     if (peer) {
       await peer.pc.setRemoteDescription(answer);
-      console.log('✅ Connection established with:', from);
+      console.log('✅ Соединение установлено с:', from);
     }
   }
 
@@ -497,7 +560,7 @@ class BrowserVPNGateway {
 
   setupDataChannel(peerId, channel) {
     channel.onopen = () => {
-      console.log(`✅ Channel ${channel.label} opened with ${peerId}`);
+      console.log(`✅ Канал ${channel.label} открыт с ${peerId}`);
     };
     
     channel.onmessage = async (event) => {
@@ -513,17 +576,17 @@ class BrowserVPNGateway {
     };
     
     channel.onerror = (error) => {
-      console.error(`Channel ${channel.label} error:`, error);
+      console.error(`Ошибка канала ${channel.label}:`, error);
     };
     
     channel.onclose = () => {
-      console.log(`Channel ${channel.label} closed`);
+      console.log(`Канал ${channel.label} закрыт`);
     };
   }
 
   // Обработка сообщений
   async handleControlMessage(peerId, message) {
-    console.log('Control message:', message.type);
+    console.log('Управляющее сообщение:', message.type);
     
     switch (message.type) {
       case 'httpRequest':
@@ -547,7 +610,7 @@ class BrowserVPNGateway {
     const { requestId, url, method, headers, body } = request;
     
     try {
-      console.log('Proxying request:', url);
+      console.log('Проксирование запроса:', url);
       
       // БЕЗ ПРОВЕРКИ НА ЛОКАЛЬНОСТЬ - проксируем ВСЁ
       const response = await fetch(url, {
