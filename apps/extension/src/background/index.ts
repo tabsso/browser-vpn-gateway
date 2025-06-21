@@ -96,3 +96,6 @@ class BrowserVPNGateway {
 
 // Создаем экземпляр
 const gateway = new BrowserVPNGateway();
+
+// Экспортируем для HMR
+export { gateway };
