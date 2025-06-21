@@ -1,10 +1,25 @@
 {
   "name": "browser-vpn-gateway",
   "version": "1.0.0",
-  "description": "Browser-based VPN gateway using WebRTC",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "install-all": "npm install && cd signal-server && npm install",
-    "dev": "cd signal-server && node server.js",
-    "start": "cd signal-server && node server.js"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "clean": "turbo run clean",
+    "type-check": "turbo run type-check"
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "pnpm@8.0.0",
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

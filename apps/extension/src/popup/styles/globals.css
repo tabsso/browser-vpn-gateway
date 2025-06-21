@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply w-popup min-h-popup m-0 font-sans bg-gray-50;
+  }
+}
+
+@layer components {
+  /* Status dot animations */
+  .status-dot-pulse {
+    @apply animate-pulse-slow;
+  }
+  
+  .status-dot-pulse-fast {
+    @apply animate-pulse;
+  }
+}

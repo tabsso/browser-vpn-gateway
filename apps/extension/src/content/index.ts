@@ -1,12 +1,11 @@
-// extension/content.js - БЕЗ ИНЪЕКЦИЙ ФИНГЕРПРИНТА
+// Content script - минимальная функциональность
 
 (function() {
   'use strict';
   
-  // Просто логируем что скрипт загружен
   console.log('🛡️ Browser VPN extension active');
   
-  // Можем собирать статистику если нужно
+  // Собираем базовую статистику
   if (window.performance && window.performance.timing) {
     window.addEventListener('load', () => {
       const timing = window.performance.timing;
@@ -20,6 +19,8 @@
           loadTime: loadTime,
           timestamp: Date.now()
         }
+      }).catch(() => {
+        // Игнорируем ошибки отправки
       });
     });
   }
